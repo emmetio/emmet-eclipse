@@ -1,0 +1,48 @@
+h1. Emmet (ex-Zen Coding)
+
+Emmet is a toolkit for high-speed HTML, XML, XSL (or any other structured code format) coding and editing. The core of this plugin is a powerful abbreviation engine which allows you to expand expressions—similar to CSS selectors—into HTML code. For example:
+
+@div#page>div.logo+ul#navigation>li*5>a@
+
+...can be expanded into:
+
+<pre><code>
+<div id="page">
+        <div class="logo"></div>
+        <ul id="navigation">
+                <li><a href=""></a></li>
+                <li><a href=""></a></li>
+                <li><a href=""></a></li>
+                <li><a href=""></a></li>
+                <li><a href=""></a></li>
+        </ul>
+</div>
+</code></pre>
+
+"Read more about current Emmet syntax":http://code.google.com/p/zen-coding/wiki/ZenHTMLSelectorsEn
+
+h2. Installation
+
+# Go to _Help > Install New Software..._ in your Eclipse IDE
+# Add "http://emmet.io/eclipse/updates/":http://emmet.io/eclipse/updates/ in update sites
+# Check _Emmet for Eclipse_ group in available plugins list, click Next button and follow the installation instructions
+# Restart Eclipse
+
+h2. Plugin Overview
+
+This plugin provides the features:
+
+* Expand abbreviations by Tab key
+* Tab stops and linked mode support
+* Simple install and update process
+* Change action shortcuts in Eclipse's Keys preferences page
+* Works across all Eclipse editors
+* Preferences support to fine-tune output for each syntax and add new abbreviations and snippets
+
+!http://media.chikuyonok.ru/eclipse/prefs.png!
+
+*Aptana 3 users:* since Aptana 3 can also expand snippets by Tab key, there might be collisions in expanded result (for example, for @div@ tag). You can remove unused snippets for Aptana bundles in order to make Emmet plugin work properly.   
+
+h3. Contributions
+
+"Django snippets":https://github.com/andreyfedoseev/zen-coding-django-snippets

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature url="features/io.emmet.eclipse_1.0.0.201209050036.jar" id="io.emmet.eclipse" version="1.0.0.201209050036">
+      <category name="io.emmet.eclipse.category"/>
+   </feature>
+   <category-def name="io.emmet.eclipse.category" label="Emmet">
+      <description>
+         Emmet is a toolkit for high-speed HTML, XML, XSL (or any other structured code format) coding and editing. The core of this plugin is a powerful abbreviation engine which allows you to expand expressions—similar to CSS selectors—into HTML code.
+      </description>
+   </category-def>
+</site>
