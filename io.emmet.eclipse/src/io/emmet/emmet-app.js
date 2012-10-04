@@ -1060,13 +1060,34 @@ var _ = (function() {
 /**
  * Core Emmet object, available in global scope
  */
-var emmet = (function(global, _) {
+var emmet = (function(global) {
 	var defaultSyntax = 'html';
 	var defaultProfile = 'plain';
 	
+	// getting underscore lib is a bit tricky for all
+	// environments (browser, node.js, wsh)
+	var underscore = global._;
+	if (!underscore) {
+		// wsh
+		try {
+			underscore = _;
+		} catch (e) {}
+	}
+
+	if (!underscore) {
+		// node.js
+		try {
+			underscore = require('underscore');
+		} catch (e) {}
+	}
+
+	if (!underscore) {
+		throw 'Cannot access to Underscore.js lib';
+	}
+
 	/** List of registered modules */
 	var modules = {
-		_: _
+		_ : underscore
 	};
 	
 	/**
@@ -1190,7 +1211,7 @@ var emmet = (function(global, _) {
 		 * @param {String} abbr Abbreviation to parse
 		 * @param {String} syntax Abbreviation's context syntax
 		 * @param {String} profile Output profile (or its name)
-		 * @param {TreeNode} contextNode Contextual node where abbreviation is
+		 * @param {Object} contextNode Contextual node where abbreviation is
 		 * written
 		 * @return {String}
 		 */
@@ -1249,7 +1270,16 @@ var emmet = (function(global, _) {
 			moduleLoader = fn;
 		}
 	};
-})(this, _);/**
+})(this);
+
+// export core for Node.JS
+if (typeof exports !== 'undefined') {
+	if (typeof module !== 'undefined' && module.exports) {
+		exports = module.exports = emmet;
+	}
+	exports.emmet = emmet;
+}
+/**
  * Emmet abbreviation parser.
  * Takes string abbreviation and recursively parses it into a tree. The parsed 
  * tree can be transformed into a string representation with 
@@ -2326,8 +2356,10 @@ emmet.exec(function(require, _) {
 	 * Insert pasted content into correct positions of parsed node
 	 * @param {AbbreviationNode} node
 	 * @param {String} content
+	 * @param {Boolean} overwrite Overwrite node content if no value placeholders
+	 * found instead of appending to existing content
 	 */
-	function insertPastedContent(node, content) {
+	function insertPastedContent(node, content, overwrite) {
 		var nodesWithPlaceholders = node.findAll(function(item) {
 			return hasOutputPlaceholder(item);
 		});
@@ -2346,7 +2378,11 @@ emmet.exec(function(require, _) {
 			// on output placeholders in subtree, insert content in the deepest
 			// child node
 			var deepest = node.deepestChild() || node;
-			deepest.content = require('abbreviationUtils').insertChildContent(deepest.content, content);
+			if (overwrite) {
+				deepest.content = content;
+			} else {
+				deepest.content = require('abbreviationUtils').insertChildContent(deepest.content, content);
+			}
 		}
 	}
 	
@@ -2388,7 +2424,7 @@ emmet.exec(function(require, _) {
 			}
 			
 			if (pastedContent) {
-				insertPastedContent(item, pastedContent);
+				insertPastedContent(item, pastedContent, !!item.data('pasteOverwrites'));
 			}
 			
 			item.data('paste', null);
@@ -2493,7 +2529,8 @@ var walker, tokens = [], isOp, isNameChar, isDigit;
 
     // utility helpers
     isNameChar = function (c) {
-        return (c === '_' || c === '-' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
+    	// be more tolerate for name tokens: allow & character for LESS syntax
+        return (c == '&' || c === '_' || c === '-' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
     };
 
     isDigit = function (ch) {
@@ -3899,6 +3936,11 @@ emmet.define('range', function(require, _) {
 			
 			if (start instanceof Range)
 				return start;
+			
+			if (_.isObject(start) && 'start' in start && 'end' in start) {
+				len = start.end - start.start;
+				start = start.start;
+			}
 				
 			return new Range(start, len);
 		},
@@ -4910,12 +4952,15 @@ emmet.define('profile', function(require, _) {
 		return profiles[name.toLowerCase()] = new OutputProfile(options);
 	}
 	
-	// create default profiles
-	createProfile('xhtml');
-	createProfile('html', {self_closing_tag: false});
-	createProfile('xml', {self_closing_tag: true, tag_nl: true});
-	createProfile('plain', {tag_nl: false, indent: false, place_cursor: false});
-	createProfile('line', {tag_nl: false, indent: false});
+	function createDefaultProfiles() {
+		createProfile('xhtml');
+		createProfile('html', {self_closing_tag: false});
+		createProfile('xml', {self_closing_tag: true, tag_nl: true});
+		createProfile('plain', {tag_nl: false, indent: false, place_cursor: false});
+		createProfile('line', {tag_nl: false, indent: false});
+	}
+	
+	createDefaultProfiles();
 	
 	return  {
 		/**
@@ -4970,6 +5015,14 @@ emmet.define('profile', function(require, _) {
 			name = (name || '').toLowerCase();
 			if (name in profiles)
 				delete profiles[name];
+		},
+		
+		/**
+		 * Resets all user-defined profiles
+		 */
+		reset: function() {
+			profiles = {};
+			createDefaultProfiles();
 		},
 		
 		/**
@@ -5198,7 +5251,7 @@ emmet.define('actionUtils', function(require, _) {
 		 * Captures context XHTML element from editor under current caret position.
 		 * This node can be used as a helper for abbreviation extraction
 		 * @param {IEmmetEditor} editor
-		 * @returns {TreeNode}
+		 * @returns {Object}
 		 */
 		captureContext: function(editor) {
 			var allowedSyntaxes = {'html': 1, 'xml': 1, 'xsl': 1};
@@ -6185,7 +6238,7 @@ emmet.define('preferences', function(require, _) {
 
 					preferences[k] = v;
 				} else if  (k in preferences) {
-					delete preferences[p];
+					delete preferences[k];
 				}
 			});
 		},
@@ -7385,7 +7438,7 @@ emmet.define('cssEditTree', function(require, _) {
 			var result = '';
 			var len = content.length;
 			var offset = pos;
-			var stopChars = '{}/\\<>';
+			var stopChars = '{}/\\<>\n\r';
 			var bracePos = -1, ch;
 			
 			// search left until we find rule edge
@@ -7826,6 +7879,9 @@ emmet.define('expandAbbreviation', function(require, _) {
  * @memberOf __wrapWithAbbreviationDefine
  */
 emmet.define('wrapWithAbbreviation', function(require, _) {
+	/** Back-references to current module */
+	var module = null;
+	
 	/**
 	 * Wraps content with abbreviation
 	 * @param {IEmmetEditor} Editor instance
@@ -7865,10 +7921,11 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 		}
 		
 		var newContent = utils.escapeText(info.content.substring(startOffset, endOffset));
-		var result = require('wrapWithAbbreviation').wrap(abbr, editorUtils.unindent(editor, newContent), info.syntax, info.profile);
+		var result = module
+			.wrap(abbr, editorUtils.unindent(editor, newContent), info.syntax, 
+					info.profile, require('actionUtils').captureContext(editor));
 		
 		if (result) {
-//			editor.setCaretPos(endOffset);
 			editor.replaceContent(result, startOffset, endOffset);
 			return true;
 		}
@@ -7876,18 +7933,20 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 		return false;
 	});
 	
-	return {
+	return module = {
 		/**
 		 * Wraps passed text with abbreviation. Text will be placed inside last
 		 * expanded element
-		 * @memberOf emmet.wrapWithAbbreviation
+		 * @memberOf wrapWithAbbreviation
 		 * @param {String} abbr Abbreviation
 		 * @param {String} text Text to wrap
 		 * @param {String} syntax Document type (html, xml, etc.). Default is 'html'
 		 * @param {String} profile Output profile's name. Default is 'plain'
+		 * @param {Object} contextNode Context node inside which abbreviation
+		 * is wrapped. It will be used as a reference for node name resolvers
 		 * @return {String}
 		 */
-		wrap: function(abbr, text, syntax, profile) {
+		wrap: function(abbr, text, syntax, profile, contextNode) {
 			/** @type emmet.filters */
 			var filters = require('filters');
 			/** @type emmet.utils */
@@ -7901,7 +7960,8 @@ emmet.define('wrapWithAbbreviation', function(require, _) {
 			var data = filters.extractFromAbbreviation(abbr);
 			var parsedTree = require('abbreviationParser').parse(data[0], {
 				syntax: syntax,
-				pastedContent: text
+				pastedContent: text,
+				contextNode: contextNode
 			});
 			if (parsedTree) {
 				var filtersList = filters.composeList(syntax, profile, data[1]);
@@ -9654,6 +9714,20 @@ emmet.define('cssResolver', function(require, _) {
 	prefs.define('css.valueSeparator', ': ',
 			'Defines a symbol that should be placed between CSS property and ' 
 			+ 'value when expanding CSS abbreviations.');
+	prefs.define('css.propertyEnd', ';',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations.');
+	
+	prefs.define('stylus.valueSeparator', ' ',
+			'Defines a symbol that should be placed between CSS property and ' 
+			+ 'value when expanding CSS abbreviations in Stylus dialect.');
+	prefs.define('stylus.propertyEnd', '',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations in Stylus dialect.');
+	
+	prefs.define('sass.propertyEnd', '',
+			'Defines a symbol that should be placed at the end of CSS property  ' 
+			+ 'when expanding CSS abbreviations in SASS dialect.');
 	
 	prefs.define('css.autoInsertVendorPrefixes', true,
 			'Automatically generate vendor-prefixed copies of expanded CSS ' 
@@ -9671,9 +9745,9 @@ emmet.define('cssResolver', function(require, _) {
 	
 	// properties list is created from cssFeatures.html file
 	var props = {
-		'webkit': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-clip, background-composite, background-origin, background-size, border-fit, border-horizontal-spacing, border-image, border-vertical-spacing, box-align, box-direction, box-flex, box-flex-group, box-lines, box-ordinal-group, box-orient, box-pack, box-reflect, box-shadow, color-correction, column-break-after, column-break-before, column-break-inside, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-span, column-width, dashboard-region, font-smoothing, highlight, hyphenate-character, hyphenate-limit-after, hyphenate-limit-before, hyphens, line-box-contain, line-break, line-clamp, locale, margin-before-collapse, margin-after-collapse, marquee-direction, marquee-increment, marquee-repetition, marquee-style, mask-attachment, mask-box-image, mask-box-image-outset, mask-box-image-repeat, mask-box-image-slice, mask-box-image-source, mask-box-image-width, mask-clip, mask-composite, mask-image, mask-origin, mask-position, mask-repeat, mask-size, nbsp-mode, perspective, perspective-origin, rtl-ordering, text-combine, text-decorations-in-effect, text-emphasis-color, text-emphasis-position, text-emphasis-style, text-fill-color, text-orientation, text-security, text-stroke-color, text-stroke-width, transform, transition, transform-origin, transform-style, transition-delay, transition-duration, transition-property, transition-timing-function, user-drag, user-modify, user-select, writing-mode, svg-shadow',
-		'moz': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-inline-policy, binding, border-bottom-colors, border-image, border-left-colors, border-right-colors, border-top-colors, box-align, box-direction, box-flex, box-ordinal-group, box-orient, box-pack, box-shadow, box-sizing, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-width, float-edge, font-feature-settings, font-language-override, force-broken-image-icon, hyphens, image-region, orient, outline-radius-bottomleft, outline-radius-bottomright, outline-radius-topleft, outline-radius-topright, perspective, perspective-origin, stack-sizing, tab-size, text-blink, text-decoration-color, text-decoration-line, text-decoration-style, text-size-adjust, transform, transform-origin, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-focus, user-input, user-modify, user-select, window-shadow',
-		'ms': 'accelerator, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, overflow-x, overflow-y, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, word-wrap, wrap-flow, wrap-margin, wrap-through, writing-mode, zoom',
+		'webkit': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-clip, background-composite, background-origin, background-size, border-fit, border-horizontal-spacing, border-image, border-vertical-spacing, box-align, box-direction, box-flex, box-flex-group, box-lines, box-ordinal-group, box-orient, box-pack, box-reflect, box-shadow, color-correction, column-break-after, column-break-before, column-break-inside, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-span, column-width, dashboard-region, font-smoothing, highlight, hyphenate-character, hyphenate-limit-after, hyphenate-limit-before, hyphens, line-box-contain, line-break, line-clamp, locale, margin-before-collapse, margin-after-collapse, marquee-direction, marquee-increment, marquee-repetition, marquee-style, mask-attachment, mask-box-image, mask-box-image-outset, mask-box-image-repeat, mask-box-image-slice, mask-box-image-source, mask-box-image-width, mask-clip, mask-composite, mask-image, mask-origin, mask-position, mask-repeat, mask-size, nbsp-mode, perspective, perspective-origin, rtl-ordering, text-combine, text-decorations-in-effect, text-emphasis-color, text-emphasis-position, text-emphasis-style, text-fill-color, text-orientation, text-security, text-stroke-color, text-stroke-width, transform, transition, transform-origin, transform-style, transition-delay, transition-duration, transition-property, transition-timing-function, user-drag, user-modify, user-select, writing-mode, svg-shadow, box-sizing, border-radius',
+		'moz': 'animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, appearance, backface-visibility, background-inline-policy, binding, border-bottom-colors, border-image, border-left-colors, border-right-colors, border-top-colors, box-align, box-direction, box-flex, box-ordinal-group, box-orient, box-pack, box-shadow, box-sizing, column-count, column-gap, column-rule-color, column-rule-style, column-rule-width, column-width, float-edge, font-feature-settings, font-language-override, force-broken-image-icon, hyphens, image-region, orient, outline-radius-bottomleft, outline-radius-bottomright, outline-radius-topleft, outline-radius-topright, perspective, perspective-origin, stack-sizing, tab-size, text-blink, text-decoration-color, text-decoration-line, text-decoration-style, text-size-adjust, transform, transform-origin, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-focus, user-input, user-modify, user-select, window-shadow, background-clip, border-radius',
+		'ms': 'accelerator, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, backface-visibility, background-position-x, background-position-y, behavior, block-progression, box-align, box-direction, box-flex, box-line-progression, box-lines, box-ordinal-group, box-orient, box-pack, content-zoom-boundary, content-zoom-boundary-max, content-zoom-boundary-min, content-zoom-chaining, content-zoom-snap, content-zoom-snap-points, content-zoom-snap-type, content-zooming, filter, flow-from, flow-into, font-feature-settings, grid-column, grid-column-align, grid-column-span, grid-columns, grid-layer, grid-row, grid-row-align, grid-row-span, grid-rows, high-contrast-adjust, hyphenate-limit-chars, hyphenate-limit-lines, hyphenate-limit-zone, hyphens, ime-mode, interpolation-mode, layout-flow, layout-grid, layout-grid-char, layout-grid-line, layout-grid-mode, layout-grid-type, line-break, overflow-style, overflow-x, overflow-y, perspective, perspective-origin, perspective-origin-x, perspective-origin-y, scroll-boundary, scroll-boundary-bottom, scroll-boundary-left, scroll-boundary-right, scroll-boundary-top, scroll-chaining, scroll-rails, scroll-snap-points-x, scroll-snap-points-y, scroll-snap-type, scroll-snap-x, scroll-snap-y, scrollbar-arrow-color, scrollbar-base-color, scrollbar-darkshadow-color, scrollbar-face-color, scrollbar-highlight-color, scrollbar-shadow-color, scrollbar-track-color, text-align-last, text-autospace, text-justify, text-kashida-space, text-overflow, text-size-adjust, text-underline-position, touch-action, transform, transform-origin, transform-origin-x, transform-origin-y, transform-origin-z, transform-style, transition, transition-delay, transition-duration, transition-property, transition-timing-function, user-select, word-break, word-wrap, wrap-flow, wrap-margin, wrap-through, writing-mode',
 		'o': 'dashboard-region, animation, animation-delay, animation-direction, animation-duration, animation-fill-mode, animation-iteration-count, animation-name, animation-play-state, animation-timing-function, border-image, link, link-source, object-fit, object-position, tab-size, table-baseline, transform, transform-origin, transition, transition-delay, transition-duration, transition-property, transition-timing-function, accesskey, input-format, input-required, marquee-dir, marquee-loop, marquee-speed, marquee-style'
 	};
 	
@@ -9784,6 +9858,31 @@ emmet.define('cssResolver', function(require, _) {
 		vendorPrefixes[name] = _.extend({}, prefixObj, obj);
 	}
 	
+	function getSyntaxPreference(name, syntax) {
+		if (syntax) {
+			var val = prefs.get(syntax + '.' + name);
+			if (!_.isUndefined(val))
+				return val;
+		}
+		
+		return prefs.get('css.' + name);
+	}
+	
+	/**
+	 * Format CSS property according to current syntax dialect
+	 * @param {String} property
+	 * @param {String} syntax
+	 * @returns {String}
+	 */
+	function formatProperty(property, syntax) {
+		var ix = property.indexOf(':');
+		property = property.substring(0, ix).replace(/\s+$/, '') 
+			+ getSyntaxPreference('valueSeparator', syntax)
+			+ require('utils').trim(property.substring(ix + 1));
+		
+		return property.replace(/\s*;\s*$/, getSyntaxPreference('propertyEnd', syntax));
+	}
+	
 	/**
 	 * Transforms snippet value if required. For example, this transformation
 	 * may add <i>!important</i> declaration to CSS property
@@ -9791,7 +9890,7 @@ emmet.define('cssResolver', function(require, _) {
 	 * @param {Boolean} isImportant
 	 * @returns {String}
 	 */
-	function transformSnippet(snippet, isImportant) {
+	function transformSnippet(snippet, isImportant, syntax) {
 		if (!_.isString(snippet))
 			snippet = snippet.data;
 		
@@ -9805,6 +9904,8 @@ emmet.define('cssResolver', function(require, _) {
 				snippet += ' !important';
 			}
 		}
+		
+		return formatProperty(snippet, syntax);
 		
 		// format value separator
 		var ix = snippet.indexOf(':');
@@ -9842,7 +9943,6 @@ emmet.define('cssResolver', function(require, _) {
 		supports: prefs.getArray('css.oProperties')
 	});
 	
-	var unitlessProps = prefs.getArray('css.unitlessProperties');
 	var floatUnit = 'em';
 	var intUnit = 'px';
 	
@@ -9852,7 +9952,7 @@ emmet.define('cssResolver', function(require, _) {
 //		obsolete: true
 //	});
 	
-	var cssSyntaxes = ['css', 'less', 'sass', 'scss'];
+	var cssSyntaxes = ['css', 'less', 'sass', 'scss', 'stylus'];
 	
 	/**
 	 * XXX register resolver
@@ -9861,7 +9961,7 @@ emmet.define('cssResolver', function(require, _) {
 	 */
 	require('resources').addResolver(function(node, syntax) {
 		if (_.include(cssSyntaxes, syntax) && node.isElement()) {
-			return module.expandToSnippet(node.abbreviation);
+			return module.expandToSnippet(node.abbreviation, syntax);
 		}
 		
 		return null;
@@ -9890,7 +9990,7 @@ emmet.define('cssResolver', function(require, _) {
 			if (content) {
 				var replaceFrom = caretPos - abbr.length;
 				var replaceTo = caretPos;
-				if (editor.getContent().charAt(caretPos) == ';') {
+				if (editor.getContent().charAt(caretPos) == ';' && content.charAt(content.length - 1) == ';') {
 					replaceTo++;
 				}
 				
@@ -10127,6 +10227,7 @@ emmet.define('cssResolver', function(require, _) {
 		 */
 		normalizeValue: function(value, property) {
 			property = (property || '').toLowerCase();
+			var unitlessProps = prefs.getArray('css.unitlessProperties');
 			return value.replace(/^(\-?[0-9\.]+)([a-z]*)$/, function(str, val, unit) {
 				if (!unit && (val == '0' || _.include(unitlessProps, property)))
 					return val;
@@ -10142,10 +10243,11 @@ emmet.define('cssResolver', function(require, _) {
 		 * Expands abbreviation into a snippet
 		 * @param {String} abbr Abbreviation name to expand
 		 * @param {String} value Abbreviation value
+		 * @param {String} syntax Currect syntax or dialect. Default is 'css'
 		 * @returns {Object} Array of CSS properties and values or predefined
 		 * snippet (string or element)
 		 */
-		expand: function(abbr, value) {
+		expand: function(abbr, value, syntax) {
 			var resources = require('resources');
 			var autoInsertPrefixes = prefs.get('css.autoInsertVendorPrefixes');
 			
@@ -10156,9 +10258,9 @@ emmet.define('cssResolver', function(require, _) {
 			}
 			
 			// check if we have abbreviated resource
-			var snippet = resources.getSnippet('css', abbr);
+			var snippet = resources.getSnippet(syntax || 'css', abbr);
 			if (snippet && !autoInsertPrefixes) {
-				return transformSnippet(snippet, isImportant);
+				return transformSnippet(snippet, isImportant, syntax);
 			}
 			
 			// no abbreviated resource, parse abbreviation
@@ -10166,7 +10268,7 @@ emmet.define('cssResolver', function(require, _) {
 			var valuesData = this.extractValues(prefixData.property);
 			var abbrData = _.extend(prefixData, valuesData);
 			
-			snippet = resources.getSnippet('css', abbrData.property);
+			snippet = resources.getSnippet(syntax || 'css', abbrData.property);
 			
 			if (!snippet) {
 				snippet = abbrData.property + ':' + defaultValue;
@@ -10197,13 +10299,13 @@ emmet.define('cssResolver', function(require, _) {
 						result.push(transformSnippet(
 								vendorPrefixes[p].transformName(snippetObj.name) 
 								+ ':' + snippetObj.value,
-								isImportant));
+								isImportant, syntax));
 						
 					}
 				});
 			
 			// put the original property
-			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant));
+			result.push(transformSnippet(snippetObj.name + ':' + snippetObj.value, isImportant, syntax));
 			
 			return result;
 		},
@@ -10212,11 +10314,11 @@ emmet.define('cssResolver', function(require, _) {
 		 * Same as <code>expand</code> method but transforms output into a 
 		 * Emmet snippet
 		 * @param {String} abbr
-		 * @param {String} value
+		 * @param {String} syntax
 		 * @returns {String}
 		 */
-		expandToSnippet: function(abbr, value) {
-			var snippet = this.expand(abbr, value);
+		expandToSnippet: function(abbr, syntax) {
+			var snippet = this.expand(abbr, null, syntax);
 			if (_.isArray(snippet)) {
 				return snippet.join('\n');
 			}
@@ -10225,10 +10327,11 @@ emmet.define('cssResolver', function(require, _) {
 				return snippet.data;
 			
 			return String(snippet);
-		}
+		},
+		
+		getSyntaxPreference: getSyntaxPreference
 	};
 });
-
 /**
  * 'Expand Abbreviation' handler that parses gradient definition from under 
  * cursor and updates CSS rule with vendor-prefixed values.
@@ -10239,6 +10342,8 @@ emmet.define('cssResolver', function(require, _) {
  */
 emmet.define('cssGradient', function(require, _) {
 	var defaultLinearDirections = ['top', 'to bottom', '0deg'];
+	/** Back-reference to current module */
+	var module = null;
 	
 	var reDeg = /\d+deg/i;
 	var reKeyword = /top|bottom|left|right/i;
@@ -10246,7 +10351,7 @@ emmet.define('cssGradient', function(require, _) {
 	// XXX define preferences
 	/** @type preferences */
 	var prefs = require('preferences');
-	prefs.define('css.gradient.prefixes', 'webkit, moz, ms, o',
+	prefs.define('css.gradient.prefixes', 'webkit, moz, o',
 			'A comma-separated list of vendor-prefixes for which values should ' 
 			+ 'be generated.');
 	
@@ -10255,6 +10360,15 @@ emmet.define('cssGradient', function(require, _) {
 	
 	prefs.define('css.gradient.omitDefaultDirection', true,
 		'Do not output default direction definition in generated gradients.');
+	
+	prefs.define('css.gradient.defaultProperty', 'background-image',
+		'When gradient expanded outside CSS value context, it will produce '
+			+ 'properties with this name.');
+	
+	prefs.define('css.gradient.fallback', false,
+			'With this option enabled, CSS gradient generator will produce '
+			+ '<code>background-color</code> property with gradient first color '
+			+ 'as fallback for old browsers.');
 	
 	function normalizeSpace(str) {
 		return require('utils').trim(str).replace(/\s+/g, ' ');
@@ -10422,6 +10536,45 @@ emmet.define('cssGradient', function(require, _) {
 	}
 	
 	/**
+	 * Returns list of CSS properties with gradient
+	 * @param {Object} gradient
+	 * @param {String} propertyName Original CSS property name
+	 * @returns {Array}
+	 */
+	function getPropertiesForGradient(gradient, propertyName) {
+		var props = [];
+		var css = require('cssResolver');
+		
+		if (prefs.get('css.gradient.fallback') && ~propertyName.toLowerCase().indexOf('background')) {
+			props.push({
+				name: 'background-color',
+				value: '${1:' + gradient.colorStops[0].color + '}'
+			});
+		}
+		
+		_.each(prefs.getArray('css.gradient.prefixes'), function(prefix) {
+			var name = css.prefixed(propertyName, prefix);
+			if (prefix == 'webkit' && prefs.get('css.gradient.oldWebkit')) {
+				try {
+					props.push({
+						name: name,
+						value: module.oldWebkitLinearGradient(gradient)
+					});
+				} catch(e) {}
+			}
+			
+			props.push({
+				name: name,
+				value: module.toString(gradient, prefix)
+			});
+		});
+		
+		return props.sort(function(a, b) {
+			return b.name.length - a.name.length;
+		});
+	}
+	
+	/**
 	 * Pastes gradient definition into CSS rule with correct vendor-prefixes
 	 * @param {EditElement} property Matched CSS property
 	 * @param {Object} gradient Parsed gradient
@@ -10432,9 +10585,6 @@ emmet.define('cssGradient', function(require, _) {
 	function pasteGradient(property, gradient, valueRange) {
 		var rule = property.parent;
 		var utils = require('utils');
-		var css = require('cssResolver');
-		/** @type Array */
-		var prefixes = prefs.getArray('css.gradient.prefixes');
 		
 		// first, remove all properties within CSS rule with the same name and
 		// gradient definition
@@ -10453,32 +10603,10 @@ emmet.define('cssGradient', function(require, _) {
 		};
 		
 		// put vanilla-clean gradient definition into current rule
-		var cssGradient = require('cssGradient');
-		property.value(val(cssGradient.toString(gradient)));
+		property.value(val(module.toString(gradient)) + '${2}');
 		
 		// create list of properties to insert
-		var propsToInsert = [];
-		_.each(prefixes, function(prefix) {
-			var name = css.prefixed(property.name(), prefix);
-			if (prefix == 'webkit' && prefs.get('css.gradient.oldWebkit')) {
-				try {
-					propsToInsert.push({
-						name: name,
-						value: val(cssGradient.oldWebkitLinearGradient(gradient))
-					});
-				} catch(e) {}
-			}
-			
-			propsToInsert.push({
-				name: name,
-				value: val(cssGradient.toString(gradient, prefix))
-			});
-		});
-		
-		// sort properties by name length
-		propsToInsert = propsToInsert.sort(function(a, b) {
-			return b.name.length - a.name.length;
-		});
+		var propsToInsert = getPropertiesForGradient(gradient, property.name());
 		
 		// put vendor-prefixed definitions before current rule
 		_.each(propsToInsert, function(prop) {
@@ -10491,10 +10619,9 @@ emmet.define('cssGradient', function(require, _) {
 	 */
 	function findGradient(cssProp) {
 		var value = cssProp.value();
-		var cssGradient = require('cssGradient');
 		var gradient = null;
 		var matchedPart = _.find(cssProp.valueParts(), function(part) {
-			return gradient = cssGradient.parse(part.substring(value));
+			return gradient = module.parse(part.substring(value));
 		});
 		
 		if (matchedPart && gradient) {
@@ -10505,6 +10632,84 @@ emmet.define('cssGradient', function(require, _) {
 		}
 		
 		return null;
+	}
+	
+	/**
+	 * Tries to expand gradient outside CSS value 
+	 * @param {IEmmetEditor} editor
+	 * @param {String} syntax
+	 */
+	function expandGradientOutsideValue(editor, syntax) {
+		var propertyName = prefs.get('css.gradient.defaultProperty');
+		
+		if (!propertyName)
+			return false;
+		
+		// assuming that gradient definition is written on new line,
+		// do a simplified parsing
+		var content = String(editor.getContent());
+		/** @type Range */
+		var lineRange = require('range').create(editor.getCurrentLineRange());
+		
+		// get line content and adjust range with padding
+		var line = lineRange.substring(content)
+			.replace(/^\s+/, function(pad) {
+				lineRange.start += pad.length;
+				return '';
+			})
+			.replace(/\s+$/, function(pad) {
+				lineRange.end -= pad.length;
+				return '';
+			});
+		
+		var css = require('cssResolver');
+		var gradient = module.parse(line);
+		if (gradient) {
+			var props = getPropertiesForGradient(gradient, propertyName);
+			props.push({
+				name: propertyName,
+				value: module.toString(gradient) + '${2}'
+			});
+			
+			var sep = css.getSyntaxPreference('valueSeparator', syntax);
+			var end = css.getSyntaxPreference('propertyEnd', syntax);
+			props = _.map(props, function(item) {
+				return item.name + sep + item.value + end;
+			});
+			
+			editor.replaceContent(props.join('\n'), lineRange.start, lineRange.end);
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Search for gradient definition inside CSS value under cursor
+	 * @param {String} content
+	 * @param {Number} pos
+	 * @returns {Object}
+	 */
+	function findGradientFromPosition(content, pos) {
+		var cssProp = null;
+		/** @type EditContainer */
+		var cssRule = require('cssEditTree').parseFromPosition(content, pos, true);
+		
+		if (cssRule) {
+			cssProp = cssRule.itemFromPosition(pos, true);
+			if (!cssProp) {
+				// in case user just started writing CSS property
+				// and didn't include semicolon–try another approach
+				cssProp = _.find(cssRule.list(), function(elem) {
+					return elem.range(true).end == pos;
+				});
+			}
+		}
+		
+		return {
+			rule: cssRule,
+			property: cssProp
+		};
 	}
 	
 	// XXX register expand abbreviation handler
@@ -10520,38 +10725,43 @@ emmet.define('cssGradient', function(require, _) {
 		
 		// let's see if we are expanding gradient definition
 		var caret = editor.getCaretPos();
-		/** @type EditContainer */
-		var cssRule = require('cssEditTree').parseFromPosition(info.content, caret, true);
-		if (cssRule) {
-			var cssProp = cssRule.itemFromPosition(caret, true);
-			if (!cssProp) {
-				// in case user just started writing CSS property
-				// and didn't include semicolon–try another approach
-				cssProp = _.find(cssRule.list(), function(elem) {
-					return elem.range(true).end == caret;
-				});
-			}
-			
-			if (cssProp) {
-				// make sure that caret is inside property value with gradient 
-				// definition
-				var g = findGradient(cssProp);
-				if (g) {
-					// make sure current property has terminating semicolon
-					cssProp.end(';');
-					
-					var ruleStart = cssRule.options.offset || 0;
-					var ruleEnd = ruleStart + cssRule.toString().length;
-					
-					pasteGradient(cssProp, g.gradient, g.valueRange);
-					editor.replaceContent(cssRule.toString(), ruleStart, ruleEnd, true);
-					editor.setCaretPos(cssProp.valueRange(true).end);
-					return true;
+		var content = info.content;
+		var css = findGradientFromPosition(content, caret);
+		
+		if (css.property) {
+			// make sure that caret is inside property value with gradient 
+			// definition
+			var g = findGradient(css.property);
+			if (g) {
+				var ruleStart = css.rule.options.offset || 0;
+				var ruleEnd = ruleStart + css.rule.toString().length;
+				
+				// Handle special case:
+				// user wrote gradient definition between existing CSS 
+				// properties and did not finished it with semicolon.
+				// In this case, we have semicolon right after gradient 
+				// definition and re-parse rule again
+				if (/[\n\r]/.test(css.property.value())) {
+					// insert semicolon at the end of gradient definition
+					var insertPos = css.property.valueRange(true).start + g.valueRange.end;
+					content = require('utils').replaceSubstring(content, ';', insertPos);
+					var newCss = findGradientFromPosition(content, caret);
+					if (newCss.property) {
+						g = findGradient(newCss.property);
+						css = newCss;
+					}
 				}
+				
+				// make sure current property has terminating semicolon
+				css.property.end(';');
+				
+				pasteGradient(css.property, g.gradient, g.valueRange);
+				editor.replaceContent(css.rule.toString(), ruleStart, ruleEnd, true);
+				return true;
 			}
 		}
 		
-		return false;
+		return expandGradientOutsideValue(editor, syntax);
 	});
 	
 	// XXX register "Reflect CSS Value" action delegate
@@ -10559,7 +10769,6 @@ emmet.define('cssGradient', function(require, _) {
 	 * @param {EditElement} property
 	 */
 	require('reflectCSSValue').addHandler(function(property) {
-		var cssGradient = require('cssGradient');
 		var utils = require('utils');
 		
 		var g = findGradient(property);
@@ -10579,17 +10788,17 @@ emmet.define('cssGradient', function(require, _) {
 			// check if property value starts with gradient definition
 			var m = prop.value().match(/^\s*(\-([a-z]+)\-)?linear\-gradient/);
 			if (m) {
-				prop.value(val(cssGradient.toString(g.gradient, m[2] || '')));
+				prop.value(val(module.toString(g.gradient, m[2] || '')));
 			} else if (m = prop.value().match(/\s*\-webkit\-gradient/)) {
 				// old webkit gradient definition
-				prop.value(val(cssGradient.oldWebkitLinearGradient(g.gradient)));
+				prop.value(val(module.oldWebkitLinearGradient(g.gradient)));
 			}
 		});
 		
 		return true;
 	});
 	
-	return {
+	return module = {
 		/**
 		 * Parses gradient definition
 		 * @param {String} gradient
@@ -10597,7 +10806,7 @@ emmet.define('cssGradient', function(require, _) {
 		 */
 		parse: function(gradient) {
 			var result = null;
-			gradient = require('utils').trim(gradient).replace(/^([\w\-]+)\((.+?)\)$/, function(str, type, definition) {
+			require('utils').trim(gradient).replace(/^([\w\-]+)\((.+?)\)$/, function(str, type, definition) {
 				// remove vendor prefix
 				type = type.toLowerCase().replace(/^\-[a-z]+\-/, '');
 				if (type == 'linear-gradient' || type == 'lg') {
@@ -11766,10 +11975,11 @@ emmet.exec(function(require, _) {
 				var wordCound = match[1] || 30;
 				
 				// force node name resolving if node should be repeated
-				// or contains attributes. In this case, node should be outputtet
+				// or contains attributes. In this case, node should be outputed
 				// as tag, otherwise as text-only node
 				node._name = '';
 				node.data('forceNameResolving', node.isRepeating() || node.attributeList().length);
+				node.data('pasteOverwrites', true);
 				node.data('paste', function(i, content) {
 					return paragraph(wordCound, !i);
 				});
@@ -11943,6 +12153,7 @@ emmet.define('bootstrap', function(require, _) {
 		 * of each file.
 		 * This method requires a <code>file</code> module of <code>IEmmetFile</code> 
 		 * interface to be implemented.
+		 * @memberOf bootstrap
 		 */
 		loadExtensions: function(fileList) {
 			var file = require('file');
@@ -12028,6 +12239,16 @@ emmet.define('bootstrap', function(require, _) {
 			if (data.syntaxProfiles) {
 				this.loadSyntaxProfiles(data.syntaxProfiles);
 			}
+		},
+		
+		/**
+		 * Resets all user-defined data: preferences, snippets etc.
+		 * @returns
+		 */
+		resetUserData: function() {
+			this.resetSnippets();
+			require('preferences').reset();
+			require('profile').reset();
 		},
 		
 		/**
