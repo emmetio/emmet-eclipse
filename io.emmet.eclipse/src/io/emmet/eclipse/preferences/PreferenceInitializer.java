@@ -20,6 +20,7 @@ public class PreferenceInitializer extends AbstractPreferenceInitializer {
 	public void initializeDefaultPreferences() {
 		IPreferenceStore store = EclipseEmmetPlugin.getDefault().getPreferenceStore();
 		store.setDefault(PreferenceConstants.P_TAB_EXPAND, true);
+		store.setDefault(PreferenceConstants.P_TAB_EXT, "html, xml, xsl, xsd, css, php, tpl, less, styl, scss, sass, jade, haml, hbs");
 		setupDefaultOutputProfiles();
 	}
 	

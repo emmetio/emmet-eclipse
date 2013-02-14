@@ -8,6 +8,7 @@ import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.preference.BooleanFieldEditor;
 import org.eclipse.jface.preference.DirectoryFieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
+import org.eclipse.jface.preference.StringFieldEditor;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -40,8 +41,6 @@ public class EclipseEmmetPreferencePage
 		super(GRID);
 		setPreferenceStore(EclipseEmmetPlugin.getDefault().getPreferenceStore());
 		setDescription("Common Emmet preferences");
-		
-		
 	}
 	
 	/**
@@ -56,6 +55,12 @@ public class EclipseEmmetPreferencePage
 				PreferenceConstants.P_TAB_EXPAND,
 				"&Expand abbreviations by Tab key",
 				getFieldEditorParent()));
+		
+		addField(
+				new StringFieldEditor(
+						PreferenceConstants.P_TAB_EXT,
+						"...in files with extensions",
+						getFieldEditorParent()));
 		
 		addField(
 			new BooleanFieldEditor(

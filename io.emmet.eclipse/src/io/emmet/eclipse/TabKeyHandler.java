@@ -13,6 +13,7 @@ import org.eclipse.jface.text.link.LinkedModeModel;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.custom.VerifyKeyListener;
 import org.eclipse.swt.events.VerifyEvent;
+import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IEditorReference;
 import org.eclipse.ui.IPartListener;
@@ -108,6 +109,7 @@ public class TabKeyHandler {
 	
 	public static VerifyKeyListener getKeyListener(final ITextEditor editor) {
 		Integer id = getEditorId(editor);
+		
 		if (!keyListeners.containsKey(id)) {
 			keyListeners.put(id, new VerifyKeyListener() {
 				
@@ -123,7 +125,7 @@ public class TabKeyHandler {
 					}
 					
 					if (event.doit) {
-						if (event.keyCode == 9 && allowTabHandler()) { // Tab key
+						if (event.keyCode == 9 && shouldHandleTabKey(editor.getEditorInput())) { // Tab key
 							event.doit = !ExpandAbbreviationAction.expand();
 						} else if (event.keyCode == 13 && allowEnterHandler()) { // Enter key
 							event.doit = !InsertFormattedLineBreakAction.execute();
@@ -135,6 +137,39 @@ public class TabKeyHandler {
 		}
 		
 		return keyListeners.get(id);
+	}
+	
+	protected static boolean shouldHandleTabKey(IEditorInput editor) {
+		if (!allowTabHandler()) {
+			return false;
+		}
+		
+		IPreferenceStore store = EclipseEmmetPlugin.getDefault().getPreferenceStore();
+		String exts = store.getString(PreferenceConstants.P_TAB_EXT);
+		if (exts == null || exts.trim().length() == 0) {
+			// allow for all extensions
+			return true;
+		}
+		
+		String[] parts = exts.toLowerCase().split(",");
+		String curFilePath = EclipseEmmetHelper.getURI(editor);
+		String curExt = "";
+		int i = curFilePath.lastIndexOf('.');
+		if (i > 0) {
+			curExt = curFilePath.substring(i + 1).toLowerCase();
+		}
+		
+		if (curExt.length() == 0) {
+			return false;
+		}
+		
+		for (String e : parts) {
+			if (e.trim().equals(curExt)) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 	
 	public static boolean allowTabHandler() {
@@ -150,6 +185,8 @@ public class TabKeyHandler {
 	public static void updateActivityState() {
 		setEnabled(allowTabHandler() || allowEnterHandler());
 	}
+	
+	
 	
 	/**
 	 * Setup global editor listener which adds Tab key listeners to newly 
