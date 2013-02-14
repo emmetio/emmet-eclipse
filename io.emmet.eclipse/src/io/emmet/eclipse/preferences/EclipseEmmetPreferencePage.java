@@ -8,7 +8,6 @@ import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.preference.BooleanFieldEditor;
 import org.eclipse.jface.preference.DirectoryFieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
-import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -85,8 +84,7 @@ public class EclipseEmmetPreferencePage
 	}
 	
 	private void updatePreferences() {
-		IPreferenceStore store = EclipseEmmetPlugin.getDefault().getPreferenceStore();
-		TabKeyHandler.setEnabled(store.getBoolean(PreferenceConstants.P_TAB_EXPAND));
+		TabKeyHandler.updateActivityState();
 	}
 
 	@Override

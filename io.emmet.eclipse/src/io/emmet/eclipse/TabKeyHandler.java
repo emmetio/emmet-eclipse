@@ -123,9 +123,9 @@ public class TabKeyHandler {
 					}
 					
 					if (event.doit) {
-						if (event.keyCode == 9) { // Tab key
+						if (event.keyCode == 9 && allowTabHandler()) { // Tab key
 							event.doit = !ExpandAbbreviationAction.expand();
-						} else if (event.keyCode == 13) { // Enter key
+						} else if (event.keyCode == 13 && allowEnterHandler()) { // Enter key
 							event.doit = !InsertFormattedLineBreakAction.execute();
 						}
 					}
@@ -137,6 +137,20 @@ public class TabKeyHandler {
 		return keyListeners.get(id);
 	}
 	
+	public static boolean allowTabHandler() {
+		IPreferenceStore store = EclipseEmmetPlugin.getDefault().getPreferenceStore();
+		return store.getBoolean(PreferenceConstants.P_TAB_EXPAND);
+	}
+	
+	public static boolean allowEnterHandler() {
+		IPreferenceStore store = EclipseEmmetPlugin.getDefault().getPreferenceStore();
+		return store.getBoolean(PreferenceConstants.P_UPGRADE_EDITORS);
+	}
+	
+	public static void updateActivityState() {
+		setEnabled(allowTabHandler() || allowEnterHandler());
+	}
+	
 	/**
 	 * Setup global editor listener which adds Tab key listeners to newly 
 	 * created editors
@@ -145,9 +159,7 @@ public class TabKeyHandler {
 		if (!inited) {
 			inited = true;
 			
-			// get user preference
-			IPreferenceStore store = EclipseEmmetPlugin.getDefault().getPreferenceStore();
-			setEnabled(store.getBoolean(PreferenceConstants.P_TAB_EXPAND));
+			updateActivityState();
 			
 			page.addPartListener(new IPartListener() {
 				
