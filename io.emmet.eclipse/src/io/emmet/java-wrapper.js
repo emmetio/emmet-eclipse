@@ -52,18 +52,20 @@ function previewWrapWithAbbreviation(editor, abbr) {
 		
 	if (startOffset == endOffset) {
 		// no selection, find tag pair
-		range = require('html_matcher')(info.content, startOffset, info.profile);
-		
-		if (!range || range[0] == -1) // nothing to wrap
+		var match = require('htmlMatcher').find(info.content, startOffset);
+		if (!match) {
+			// nothing to wrap
 			return null;
+		}
 		
-		var narrowedSel = utils.narrowToNonSpace(info.content, range[0], range[1] - range[0]);
+		var narrowedSel = utils.narrowToNonSpace(info.content, match.range);
 		startOffset = narrowedSel.start;
 		endOffset = narrowedSel.end;
 	}
 	
 	var newContent = utils.escapeText(info.content.substring(startOffset, endOffset));
-	return require('wrapWithAbbreviation').wrap(abbr, editorUtils.unindent(editor, newContent), info.syntax, info.profile) 
+	var ctx = require('actionUtils').captureContext(editor);
+	return require('wrapWithAbbreviation').wrap(abbr, editorUtils.unindent(editor, newContent), info.syntax, info.profile, ctx) 
 		|| null;
 }
 
