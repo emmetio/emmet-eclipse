@@ -7,6 +7,11 @@
  * @version 0.65
  */
 emmet.define('file', function(require, _) {
+	function isURL(path) {
+		var re = /^https?:\/\//;
+		return re.test(String(path));
+	}
+
 	return {
 		/**
 		 * Read file content and return it
@@ -14,21 +19,42 @@ emmet.define('file', function(require, _) {
 		 * @return {String}
 		 * @memberOf __emmetFileJava
 		 */
-		read: function(path) {
-			var File = Packages.java.io.File;
-			var f = new File(path),
-				input_stream, c, content = [];
-				
-			if (f.exists() && f.isFile() && f.canRead()) {
-				input_stream = new Packages.java.io.FileInputStream(f);
-				while ((c = input_stream.read()) != -1) {
-					content.push(String.fromCharCode(c));
-				}
-				
-				input_stream.close();
+		read: function(path, size, callback) {
+			var args = _.rest(arguments);
+			callback = _.last(args);
+			args = _.initial(args);
+			if (!args.length) {
+				size = 0;
 			}
 
-			return content.join('');
+			var stream = null;
+			if (isURL(path)) {
+				var url = new java.net.URL(path);
+				stream = new java.io.BufferedReader(new java.io.InputStreamReader(url.openStream()));
+			} else {
+				var f = new java.io.File(path);
+				if (f.exists() && f.isFile() && f.canRead()) {
+					stream = new java.io.FileInputStream(f);
+				}
+			}
+
+			if (stream) {
+				var c, content = [];
+				while ((c = stream.read()) != -1) {
+					content.push(String.fromCharCode(c));
+					if (size && content.length >= size) {
+						break;
+					}
+				}
+
+				stream.close();
+
+				if (content.length) {
+					return callback(0, content.join(''));
+				}
+			}
+
+			callback('Unable to read file');
 		},
 
 		/**
@@ -56,6 +82,10 @@ emmet.define('file', function(require, _) {
 		 * @return {String|null} Returns null if <code>file_name</code> cannot be located
 		 */
 		locateFile: function(editor_file, file_name) {
+			if (isURL(file_name)) {
+				return file_name;
+			}
+
 			var File = Packages.java.io.File;
 			var f = new File(editor_file),
 				result = '',
@@ -82,7 +112,7 @@ emmet.define('file', function(require, _) {
 		 * @param {String} file_name
 		 * @return {String}
 		 */
-		createPath: function(parent, file_name) {
+		createPath: function(parent, file_name, callback) {
 			var File = Packages.java.io.File,
 				f = new File(parent),
 				result = '';
@@ -94,6 +124,10 @@ emmet.define('file', function(require, _) {
 				
 				var req_file = new File(parent, file_name);
 				result = req_file.getCanonicalPath();
+			}
+			
+			if (callback) {
+				callback(result);
 			}
 			
 			return result;
