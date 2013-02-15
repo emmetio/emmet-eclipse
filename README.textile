@@ -19,7 +19,7 @@ Emmet is a toolkit for high-speed HTML, XML, XSL (or any other structured code f
 </div>
 </code></pre>
 
-"Read more about current Emmet syntax":http://code.google.com/p/zen-coding/wiki/ZenHTMLSelectorsEn
+"Read more about current Emmet syntax":http://docs.emmet.io/abbreviations/syntax/
 
 h2. Installation
 
