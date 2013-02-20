@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
-   <feature url="features/io.emmet.eclipse_1.0.0.201209050036.jar" id="io.emmet.eclipse" version="1.0.0.201209050036">
+   <feature url="features/io.emmet.eclipse_1.0.0.201302210139.jar" id="io.emmet.eclipse" version="1.0.0.201302210139">
       <category name="io.emmet.eclipse.category"/>
    </feature>
    <category-def name="io.emmet.eclipse.category" label="Emmet">

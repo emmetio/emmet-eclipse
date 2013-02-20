@@ -27,6 +27,8 @@ emmet.define('file', function(require, _) {
 				size = 0;
 			}
 
+			size = 0;
+
 			var stream = null;
 			if (isURL(path)) {
 				var url = new java.net.URL(path);
