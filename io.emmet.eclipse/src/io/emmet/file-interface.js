@@ -1,5 +1,5 @@
 /**
- * Zen Coding file I/O interface implementation using Java classes 
+ * Emmet file I/O interface implementation using Java classes 
  * (for Mozilla Rhino)
  *
  * @author Sergey Chikuyonok (serge.che@gmail.com)
@@ -13,50 +13,89 @@ emmet.define('file', function(require, _) {
 	}
 
 	return {
-		/**
-		 * Read file content and return it
-		 * @param {String} path File's relative or absolute path
-		 * @return {String}
-		 * @memberOf __emmetFileJava
-		 */
-		read: function(path, size, callback) {
-			var args = _.rest(arguments);
-			callback = _.last(args);
+		_parseParams: function(args) {
+			var params = {
+				path: args[0],
+				size: 0
+			};
+
+			args = _.rest(args);
+			params.callback = _.last(args);
 			args = _.initial(args);
-			if (!args.length) {
-				size = 0;
+			if (args.length) {
+				params.size = args[0];
 			}
 
-			size = 0;
-
-			var stream = null;
-			if (isURL(path)) {
-				var url = new java.net.URL(path);
-				stream = new java.io.BufferedReader(new java.io.InputStreamReader(url.openStream()));
+			return params;
+		},
+		
+		_read: function(params, isText) {
+			var stream = null, content, c;
+			if (isURL(params.path)) {
+				var url = new java.net.URL(params.path);
+				stream = url.openStream();
 			} else {
-				var f = new java.io.File(path);
+				var f = new java.io.File(params.path);
 				if (f.exists() && f.isFile() && f.canRead()) {
 					stream = new java.io.FileInputStream(f);
 				}
 			}
 
 			if (stream) {
-				var c, content = [];
-				while ((c = stream.read()) != -1) {
-					content.push(String.fromCharCode(c));
-					if (size && content.length >= size) {
-						break;
+				
+				if (isText) {
+					stream = new java.io.BufferedReader(new java.io.InputStreamReader(stream));
+					content = '';
+					while( (c = stream.readLine()) != null) {
+						content += String(new java.lang.String(c.getBytes(), 'UTF-8'));
 					}
+				} else {
+					content = [];
+					while ((c = stream.read()) != -1) {
+						content.push(String.fromCharCode(c));
+					}
+					content = content.join('');
 				}
 
 				stream.close();
-
-				if (content.length) {
-					return callback(0, content.join(''));
-				}
+				return content;
 			}
-
-			callback('Unable to read file');
+			
+			return null;
+		},
+		
+		/**
+		 * Read binary file content and return it
+		 * @param {String} path File's relative or absolute path
+		 * @return {String}
+		 * @memberOf __emmetFileJava
+		 */
+		read: function(path, size, callback) {
+			var params = this._parseParams(arguments);
+			var content = this._read(params);
+			
+			if (content) {
+				return params.callback(0, content);
+			}
+			
+			params.callback('Unable to read file');
+		},
+		
+		/**
+		 * Read file content and return it
+		 * @param {String} path File's relative or absolute path
+		 * @return {String}
+		 * @memberOf __emmetFileJava
+		 */
+		readText: function(path, size, callback) {
+			var params = this._parseParams(arguments);
+			var content = this._read(params, true);
+			
+			if (content) {
+				return params.callback(0, content);
+			}
+			
+			params.callback('Unable to read file');
 		},
 
 		/**
