@@ -34,7 +34,7 @@ public class ExpandAbbreviationAction extends AbstractHandler {
 		ActionRunner runner = ActionRunner.getSingleton();
 		EclipseEmmetEditor editor = runner.getEditor();
 		Emmet js = Emmet.getSingleton();
-		String profileName = "eclipse";
+//		String profileName = "eclipse";
 		
 		if (editor != null) {
 			try {
@@ -42,7 +42,7 @@ public class ExpandAbbreviationAction extends AbstractHandler {
 				TabKeyHandler.install(editor.getEditor());
 				
 				// expand abbreviation with current profile
-				return js.runAction(editor, "expand_abbreviation", editor.getSyntax(), profileName);
+				return js.runAction(editor, "expand_abbreviation", editor.getSyntax());
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

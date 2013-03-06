@@ -27,8 +27,18 @@ public class Emmet {
 		scope = cx.initStandardObjects();
 		try {
 			// load core
-			for (int i = 0; i < coreFiles.length; i++) {
-				cx.evaluateReader(scope, getReaderForLocalFile(coreFiles[i]), coreFiles[i], 1, null);
+			String[] jsSource = coreFiles.clone();
+			
+			// does delegate provides additional source files?
+			if (userDataDelegate != null) {
+				String[] addons = userDataDelegate.additionalSourceJS();
+				if (addons != null) {
+					System.arraycopy(addons, 0, jsSource, jsSource.length, addons.length);
+				}
+			}
+			
+			for (int i = 0; i < jsSource.length; i++) {
+				cx.evaluateReader(scope, getReaderForLocalFile(jsSource[i]), jsSource[i], 1, null);
 			}
 			
 			// load default snippets
@@ -93,6 +103,9 @@ public class Emmet {
 	 * @return
 	 */
 	public Object execJSFunction(String name, Object... vargs) {
+		// make sure that JS context is initiated
+//		getSingleton();
+		
 		// temporary register all variables
 		Object wrappedObj;
 		StringBuilder jsArgs = new StringBuilder();

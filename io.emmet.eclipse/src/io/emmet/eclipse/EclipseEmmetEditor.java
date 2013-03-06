@@ -285,7 +285,7 @@ public class EclipseEmmetEditor implements IEmmetEditor {
 
 	@Override
 	public String getProfileName() {
-		return EditorTypeInvestigator.getOutputProfile(this);
+		return null;
 	}
 
 	public String prompt(String type, String title) {

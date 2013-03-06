@@ -24,15 +24,15 @@ public class EclipseUserData implements IUserData {
 		// since JSON with variable data types and fields in Java is pretty hard, 
 		// we will collect user data into a simple hash array and then convert to
 		// desired structure in JS
-		HashMap<String, Object> userData = new HashMap<String, Object>();
-		userData.put("variables", getTemplates("variables"));
-		userData.put("snippets", getTemplates("snippets"));
-		userData.put("abbreviations", getTemplates("abbreviations"));
-		userData.put("profiles", OutputProfile.allProfiles());
-		
-		Gson gson = new Gson();
-		String payload = gson.toJson(userData);
-		ctx.execJSFunction("javaLoadUserData", payload);
+//		HashMap<String, Object> userData = new HashMap<String, Object>();
+//		userData.put("variables", getTemplates("variables"));
+//		userData.put("snippets", getTemplates("snippets"));
+//		userData.put("abbreviations", getTemplates("abbreviations"));
+//		userData.put("profiles", OutputProfile.allProfiles());
+//		
+//		Gson gson = new Gson();
+//		String payload = gson.toJson(userData);
+//		ctx.execJSFunction("javaLoadUserData", payload);
 	}
 	
 	/**
@@ -60,6 +60,19 @@ public class EclipseUserData implements IUserData {
 				ctx.execJSFunction("javaLoadExtensions", gson.toJson(extFiles));
 			}
 		}
+		
+		// since JSON with variable data types and fields in Java is pretty hard, 
+		// we will collect user data into a simple hash array and then convert to
+		// desired structure in JS
+		HashMap<String, Object> userData = new HashMap<String, Object>();
+		userData.put("variables", getTemplates("variables"));
+		userData.put("snippets", getTemplates("snippets"));
+		userData.put("abbreviations", getTemplates("abbreviations"));
+		userData.put("profiles", OutputProfile.allProfiles());
+		
+		Gson gson = new Gson();
+		String payload = gson.toJson(userData);
+		ctx.execJSFunction("javaLoadUserData", payload);
 	}
 	
 	private ArrayList<ArrayList<String>> getTemplates(String type) {
@@ -91,5 +104,10 @@ public class EclipseUserData implements IUserData {
 		}
 		
 		return TemplateHelper.getTemplateStore(type);
+	}
+
+	@Override
+	public String[] additionalSourceJS() {
+		return null;
 	}
 }
