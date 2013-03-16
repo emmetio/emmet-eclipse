@@ -139,9 +139,11 @@ function javaLoadUserData(payload) {
 
 	// prepare variables
 	if ('variables' in payload) {
-		validPayload.variables = {};
+		var controlChars = {};
+		
+		validPayload.snippets.variables = {};
 		_.each(payload.variables, function(item) {
-			validPayload.variables[item[1]] = item[2];
+			validPayload.snippets.variables[item[1]] = javaUnescapeString(item[2]);
 		});
 	}
 
@@ -150,6 +152,36 @@ function javaLoadUserData(payload) {
 
 function javaLoadExtensions(payload) {
 	require('bootstrap').loadExtensions(strToJSON(payload));
+}
+
+function javaUnescapeString(str) {
+	str = (str || '').replace(/\/\//g, '\\');
+	var out = '';
+	var charmap = {
+		'b': '\b',
+		'f': '\f',
+		'n': '\n',
+		'r': '\r',
+		't': '\t',
+		'v': '\v',
+		'\\': '\\'
+	};
+	
+	for (var i = 0, il = str.length, ch, nextCh; i < il; i++) {
+		ch = str.charAt(i);
+		if (ch == '\\') {
+			nextCh = str.charAt(++i);
+			if (nextCh in charmap) {
+				out += charmap[nextCh];
+			} else {
+				out += nextCh;
+			}
+		} else {
+			out += ch;
+		}
+	}
+	
+	return out;
 }
 
 function javaExtractTabstops(text) {
