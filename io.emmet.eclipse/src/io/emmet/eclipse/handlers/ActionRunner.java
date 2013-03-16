@@ -10,11 +10,9 @@ import org.eclipse.ui.IEditorPart;
 public class ActionRunner {
 	private volatile static ActionRunner singleton;
 	private EclipseEmmetEditor emmetEditor;
-	private Emmet js;
-
+	
 	private ActionRunner() {
 		emmetEditor = new EclipseEmmetEditor();
-		js = Emmet.getSingleton();
 	}
 
 	public static ActionRunner getSingleton() {
@@ -38,7 +36,7 @@ public class ActionRunner {
 		EclipseEmmetEditor editor = getEditor();
 		if (editor != null) {
 			try {
-				return js.runAction(editor, actionName);
+				return Emmet.getSingleton().runAction(editor, actionName);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}

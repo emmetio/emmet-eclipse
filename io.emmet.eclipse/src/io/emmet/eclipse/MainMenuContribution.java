@@ -43,7 +43,9 @@ public class MainMenuContribution extends ExtensionContributionFactory {
 		ICommandService commandService = (ICommandService) serviceLocator.getService(ICommandService.class);
 		
 		Command command = commandService.getCommand("io.emmet.eclipse.commands." + item.getId());
-		command.define(item.getName(), "", commandService.getCategory("io.emmet.eclipse.commands.category"));
+		if (!command.isDefined()) {
+			command.define(item.getName(), "", commandService.getCategory("io.emmet.eclipse.commands.category"));
+		}
 		
 		IHandlerService handlerService = (IHandlerService) serviceLocator.getService(IHandlerService.class); 
 		handlerService.activateHandler(command.getId(), handlerFactory(item.getId()));
@@ -55,12 +57,12 @@ public class MainMenuContribution extends ExtensionContributionFactory {
 		
 		CommandContributionItem contribItem = new CommandContributionItem(p);
 		contribItem.setVisible(true);
+		
 		return contribItem;
 	}
 	
 	private IContributionItem createContributionItem(IServiceLocator serviceLocator, Menu item) {
 		MenuManager submenu = new MenuManager(item.getName(), null);
-		
 		for (AbstractMenuItem subitem : item.getItems()) {
 			submenu.add(createContributionItem(serviceLocator, subitem));
 		}

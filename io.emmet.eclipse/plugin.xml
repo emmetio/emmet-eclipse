@@ -12,7 +12,7 @@
       <command
             name="Expand Abbreviation"
             categoryId="io.emmet.eclipse.commands.category"
-            id="io.emmet.eclipse.commands.expandAbbreviationCommand">
+            id="io.emmet.eclipse.commands.expand_abbreviation">
       </command>
       <command
             name="Match Pair Outward"
@@ -129,7 +129,7 @@
    <extension
          point="org.eclipse.ui.bindings">
       <key
-            commandId="io.emmet.eclipse.commands.expandAbbreviationCommand"
+            commandId="io.emmet.eclipse.commands.expand_abbreviation"
             contextId="org.eclipse.ui.textEditorScope"
             sequence="M1+E"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
