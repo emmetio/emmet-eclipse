@@ -49,7 +49,7 @@ public class EclipseEmmetHelper {
 	 * @return
 	 */
 	public static IEditorPart getTextEditor(IEditorPart editor) {
-		if (editor instanceof MultiPageEditorPart) {
+		if (editor instanceof MultiPageEditorPart && editor.getSelectedPage() instanceof IEditorPart) {
 			IEditorPart currentPage = (IEditorPart) ((MultiPageEditorPart) editor).getSelectedPage();
 
 			if (currentPage instanceof ITextEditor) {
