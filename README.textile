@@ -24,7 +24,7 @@ Emmet is a toolkit for high-speed HTML, XML, XSL (or any other structured code f
 h2. Installation
 
 # Go to _Help > Install New Software..._ in your Eclipse IDE
-# Add "http://emmet.io/eclipse/updates/":http://download.emmet.io/eclipse/updates/ in update sites
+# Add "http://download.emmet.io/eclipse/updates/":http://download.emmet.io/eclipse/updates/ in update sites
 # Check _Emmet for Eclipse_ group in available plugins list, click Next button and follow the installation instructions
 # Restart Eclipse
 
