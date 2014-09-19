@@ -137,7 +137,7 @@
       <key
             commandId="io.emmet.eclipse.commands.match_pair_outward"
             contextId="org.eclipse.ui.textEditorScope"
-            sequence="M1+D"
+            sequence="M3+CTRL+D"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
       </key>
       <key
