@@ -134,12 +134,14 @@
             sequence="M1+E"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
       </key>
+      <!-- #27 disable
       <key
             commandId="io.emmet.eclipse.commands.match_pair_outward"
             contextId="org.eclipse.ui.textEditorScope"
             sequence="M1+D"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration">
       </key>
+      -->
       <key
             commandId="io.emmet.eclipse.commands.match_pair_inward"
             contextId="org.eclipse.ui.textEditorScope"
